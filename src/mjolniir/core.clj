@@ -1,4 +1,4 @@
-(ns mjolniir.core
+(ns fujiin.mjolniir.core
   (:require [marcliberatore.mallet-lda :refer [lda make-instance-list]]
             [clojure.string :as s]
             [clojure.pprint :refer :all]))
