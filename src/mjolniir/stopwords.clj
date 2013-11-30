@@ -7,6 +7,7 @@
             [net.cgrand.xml :as xml]))
 
 (def STOPWORDS_URL "http://www.ranks.nl/resources/stopwords.html")
+(def STOPWORDS_PATH "data/stopwords.txt")
 
 (defn fetch-url
   ([uri] (client/get uri))
@@ -30,8 +31,12 @@
                         (map #(html/select % [:td]) blocks)))))
 
 (defn write [data]
-  (spit "data/stopwords.txt" data))
+  (spit STOPWORDS_PATH data))
 
 (defn run []
   (let [words (process (:body (fetch-url)))]
-    (write (vec words))))
+    (write (seq words))))
+
+(defn get-stopwords []
+  (let [words (slurp STOPWORDS_PATH)]
+    (read-string words)))
