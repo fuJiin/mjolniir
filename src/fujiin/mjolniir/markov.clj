@@ -9,37 +9,36 @@
       :body
       (s/split #"[\n\r]+")))
 
+(defn tokenize [sent]
+  (s/split (s/trim sent) #"[\ \s]+"))
+
 (defn update-map [m k1 k2]
   (update-in m [k1 k2] (fnil inc 0)))
 
-(defn chain-map [sent lookback]
-  (for [i (-> sent count dec range)]))
+(defn words [sent start end]
+  (let [t (count sent)]
+    (s/join " " (subvec sent (min t start) (min t end)))))
 
-(defn occ-map [ws lookback mmap]
-  (loop [i 0
-         m mmap
-         tokens (vec ws)]
-    (let [j (inc i)
-          t (count tokens)
-          w1 (s/join " " (subvec ws (max 0 (- i lookback)) i))
-          w2 (s/join " " (subvec ws i j))
-          v (m w1)
-          newm (update-in m [w1 w2] (fnil inc 0))]
-      (if (>= j t)
-        newm
-        (recur j newm tokens)))))
+(defn join-chains [chains]
+  (loop [current chains mapping {}]
+    (let [c (first current)
+          n (next current)
+          m (apply update-map (flatten [mapping c]))]
+      (if (nil? n) m (recur n m)))))
+
+(defn map-chains [tokens lookback]
+  (for [i (-> tokens count inc range)]
+     (let [term (words tokens (max 0 (- i lookback)) i)
+           follow (words tokens i (inc i))]
+       [term follow])))
 
 (defn gen-occ-map [titles lookback]
-  (loop [ts titles
-         m {}]
-    (let [ws (s/split (s/trim (first ts)) #"[\ \s]+")
-          newm (if (> (count ws) lookback)
-                 (occ-map ws lookback m)
-                 m)
-          jobs (rest ts)]
-      (if (empty? jobs)
-        newm
-        (recur jobs newm)))))
+  (->> titles
+       (map tokenize)
+       (filter #(> (count %) lookback))
+       (map #(map-chains % lookback))
+       (reduce into)
+       join-chains))
 
 (defn gen-prob-map [omap]
   (->> omap
@@ -92,4 +91,6 @@
               :or {lookback 2}}]
   (let [titles (or titles (crawl-titles))
         res (process titles lookback)]
-    (s/join " " (gen-sent res limit))))
+    (->> (gen-sent res limit)
+         (s/join " ")
+         (s/trim))))
