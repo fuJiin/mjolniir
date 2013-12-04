@@ -1,21 +1,23 @@
 (ns fujiin.mjolniir.core
   (:require [marcliberatore.mallet-lda :refer [lda make-instance-list]]
             [clojure.string :as s]
-            [clojure.pprint :refer :all]))
+            [fujiin.mjolniir.stopwords :refer [get-stopwords]]
+            [fujiin.mjolniir.utils :refer [includes?]])
+  (:import (cc.mallet.pipe TokenSequenceRemoveStopwords)))
 
-(defn default-tokenizer [sent]
-  (s/split sent #"[\ \s]+"))
-
-(defn tokenize
-  ([sent tokenizer] (tokenizer sent))
-  ([sent] (default-tokenizer sent)))
+(defn scrub-stopwords [tokens]
+  (let [stopwords (vec (get-stopwords))]
+    (remove (fn [word]
+              (some #(= word %) stopwords))
+            tokens)))
 
 (defn create-tokens [sent]
-  (-> sent
-      (s/replace #"[\s\W]+" " ")
-      s/trim
-      s/lower-case
-      tokenize))
+  (let [tokens (-> sent
+                   s/lower-case
+                   (s/replace #"[\s\W]+" " ")
+                   (s/split #"[\ \s]+")
+                   scrub-stopwords)]
+    (scrub-stopwords (map s/trim tokens))))
 
 (defn create-instance-data [docs]
   (map-indexed (fn [i s] [i (create-tokens s)]) docs))

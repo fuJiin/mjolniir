@@ -4,7 +4,9 @@
             [hickory.select :as select]
             [net.cgrand.enlive-html :as html]
             [net.cgrand.tagsoup :as tagsoup]
-            [net.cgrand.xml :as xml]))
+            [net.cgrand.xml :as xml]
+            [cheshire.core :as json]
+            [fujiin.mjolniir.utils :refer [includes?]]))
 
 (def STOPWORDS_URL "http://www.ranks.nl/resources/stopwords.html")
 (def STOPWORDS_PATH "data/stopwords.txt")
@@ -35,8 +37,8 @@
 
 (defn run []
   (let [words (process (:body (fetch-url)))]
-    (write (seq words))))
+    (write (json/generate-string words))))
 
 (defn get-stopwords []
   (let [words (slurp STOPWORDS_PATH)]
-    (read-string words)))
+    (json/parse-string words)))
