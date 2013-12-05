@@ -122,7 +122,6 @@
   (let [titles (or titles (crawl-titles))]
     (loop []
       (let [res (process titles lookback)
-            out (->> (generate-sentence res limit)
-                     (s/join " ")
-                     (s/trim))]
+            sent (generate-sentence res limit)
+            out (->> sent (s/join " ") s/trim)]
         (if-not (includes? titles out) out (recur))))))
