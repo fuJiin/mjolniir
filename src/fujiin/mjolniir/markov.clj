@@ -1,6 +1,7 @@
 (ns fujiin.mjolniir.markov
   (:require [clj-http.client :as client]
-            [clojure.string :as s]))
+            [clojure.string :as s]
+            [fujiin.mjolniir.utils :refer [includes?]]))
 
 (def TITLES_URL "http://pastebin.com/raw.php?i=nqpsnTtW")
 
@@ -32,7 +33,7 @@
            follow (words tokens i (inc i))]
        [term follow])))
 
-(defn gen-occ-map [titles lookback]
+(defn occurrence-map [titles lookback]
   (->> titles
        (map tokenize)
        (filter #(> (count %) lookback))
@@ -40,21 +41,27 @@
        (reduce into)
        join-chains))
 
-(defn gen-prob-map [omap]
+(defn distro->probs
+  "Converts word distribution mapping into probability mapping.
+  { word occurrences } -> { word probability }"
+  [distro]
+  (let [sum (reduce + (map last distro))]
+    (map (fn [[word occ]] [word (/ occ sum)])
+         distro)))
+
+(defn occ->probs [[word distro]]
+  {word (->> (distro->probs distro)
+             flatten
+             (apply hash-map))})
+
+(defn probability-map [omap]
   (->> omap
-       (pmap
-        (fn [[word distro]]
-          (let [sum (reduce + (map last distro))]
-            {word (->> distro
-                           (map (fn [[k v]]
-                                  [k (/ v sum)]))
-                           flatten
-                           (apply hash-map))})))
+       (map occ->probs)
        (reduce into)))
 
 (defn process [titles lookback]
-  (let [omap (gen-occ-map titles lookback)
-        prmap (gen-prob-map omap)]
+  (let [omap (occurrence-map titles lookback)
+        prmap (probability-map omap)]
     {:titles titles
      :lookback lookback
      :data prmap }))
@@ -89,8 +96,12 @@
 
 (defn run [& {:keys [titles lookback limit]
               :or {lookback 2}}]
-  (let [titles (or titles (crawl-titles))
-        res (process titles lookback)]
-    (->> (gen-sent res limit)
-         (s/join " ")
-         (s/trim))))
+  (let [titles (or titles (crawl-titles))]
+    (loop []
+      (let [res (process titles lookback)
+            out (->> (gen-sent res limit)
+                     (s/join " ")
+                     (s/trim))]
+        (if-not (includes? titles out)
+          out
+          (recur))))))
