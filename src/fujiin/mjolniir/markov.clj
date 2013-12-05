@@ -17,7 +17,7 @@
 (defn tokenize [sent]
   (s/split (s/trim sent) #"[\ \s]+"))
 
-(defn update-map
+(defn inc-in
   "Increments dual level map values, defaulting to 0"
   [m k1 k2]
   (update-in m [k1 k2] (fnil inc 0)))
@@ -35,7 +35,7 @@
   (loop [current chains mapping {}]
     (let [c (first current)
           n (next current)
-          m (apply update-map (flatten [mapping c]))]
+          m (apply inc-in (flatten [mapping c]))]
       (if (nil? n) m (recur n m)))))
 
 (defn tokens->chains
@@ -62,23 +62,19 @@
   { word occurrences } => { word probability }"
   [distro]
   (let [sum (reduce + (map last distro))]
-    (map (fn [[word occ]] [word (/ occ sum)])
+    (map (fn [[word occ]] {word (/ occ sum)})
          distro)))
 
 (defn occ->probs
   "Remaps a single occurrence distribution into
    probability distribution"
   [[word distro]]
-  {word (->> (distro->probs distro)
-             flatten
-             (apply hash-map))})
+  {word (->> distro distro->probs (reduce into))})
 
 (defn probability-map
   "Convert multiple occurrence mapping into probability mappings"
   [omap]
-  (->> omap
-       (map occ->probs)
-       (reduce into)))
+  (->> omap (map occ->probs) (reduce into)))
 
 (defn process
   "Generates probability map given titles and lookback value"
@@ -129,6 +125,4 @@
             out (->> (generate-sentence res limit)
                      (s/join " ")
                      (s/trim))]
-        (if-not (includes? titles out)
-          out
-          (recur))))))
+        (if-not (includes? titles out) out (recur))))))
