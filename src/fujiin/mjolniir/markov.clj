@@ -89,21 +89,18 @@
      :lookback lookback
      :data prmap }))
 
-(defn sample [its]
-  (loop [i 0
-         acc 0
-         items (vec its)
-         w nil]
-    (let [r (rand)
-          [word v] (get items i)
-          t (+ acc v)
-          nextw (if (< r (/ v t))
-                  word
-                  w)
-          j (inc i)]
-      (if (>= j (count items))
-        nextw
-        (recur j t items nextw)))))
+(defn sample
+  "Generate next word based on probability distribution"
+  [distro]
+  (loop [pairs (seq distro)
+         thresh 0
+         prev nil]
+    (let [[word v] (first pairs)
+          n (next pairs)
+          r (rand)
+          t (+ thresh v)
+          cand (if (< r (/ v t)) word prev)]
+      (if-not n cand (recur n t cand)))))
 
 (defn generate-sentence
   "Probabilistically generate sentence w/ given lookback and
